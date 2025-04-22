@@ -6,6 +6,10 @@
     <GROUP id="{E6B78EE1-2878-C74C-1E95-927B11326436}" name="Source">
       <FILE id="tJmNhN" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
       <FILE id="ai49D9" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
+      <FILE id="GpHJ8Q" name="ReverbProcessor.cpp" compile="1" resource="0"
+            file="Source/ReverbProcessor.cpp"/>
+      <FILE id="fE7HFP" name="ReverbProcessor.h" compile="0" resource="0"
+            file="Source/ReverbProcessor.h"/>
       <FILE id="lsh08E" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
     </GROUP>
@@ -18,6 +22,7 @@
     <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
@@ -25,7 +30,7 @@
   </MODULES>
   <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1"/>
   <EXPORTFORMATS>
-    <ANDROIDSTUDIO targetFolder="Builds/Android">
+    <ANDROIDSTUDIO targetFolder="Builds/Android" microphonePermissionNeeded="1">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" targetName="LiveMixPro"/>
         <CONFIGURATION isDebug="0" name="Release" targetName="LiveMixPro"/>
@@ -42,6 +47,7 @@
         <MODULEPATH id="juce_graphics" path="../../../../Downloads/JUCE/modules"/>
         <MODULEPATH id="juce_gui_basics" path="../../../../Downloads/JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../../../../Downloads/JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../../../Downloads/JUCE/modules"/>
       </MODULEPATHS>
     </ANDROIDSTUDIO>
     <XCODE_IPHONE targetFolder="Builds/iOS">
@@ -61,6 +67,7 @@
         <MODULEPATH id="juce_graphics" path="../../../../Downloads/JUCE/modules"/>
         <MODULEPATH id="juce_gui_basics" path="../../../../Downloads/JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../../../../Downloads/JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../../../Downloads/JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
   </EXPORTFORMATS>
