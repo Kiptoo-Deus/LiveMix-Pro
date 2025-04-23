@@ -27,6 +27,7 @@
     <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_midi_ci" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
   </MODULES>
   <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1"/>
   <EXPORTFORMATS>
@@ -48,6 +49,7 @@
         <MODULEPATH id="juce_gui_basics" path="../../../../Downloads/JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../../../../Downloads/JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../../../Downloads/JUCE/modules"/>
+        <MODULEPATH id="juce_midi_ci" path="../../../../Downloads/JUCE/modules"/>
       </MODULEPATHS>
     </ANDROIDSTUDIO>
     <XCODE_IPHONE targetFolder="Builds/iOS">
@@ -68,6 +70,7 @@
         <MODULEPATH id="juce_gui_basics" path="../../../../Downloads/JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../../../../Downloads/JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../../../Downloads/JUCE/modules"/>
+        <MODULEPATH id="juce_midi_ci" path="../../../../Downloads/JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
   </EXPORTFORMATS>

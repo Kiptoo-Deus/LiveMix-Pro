@@ -25,13 +25,12 @@ void ReverbProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     reverb.reset();
     reverb.setSampleRate(sampleRate);
-    juce::Logger::writeToLog("ReverbProcessor: Initialized with sampleRate=" + juce::String(sampleRate));
+
 }
 
 void ReverbProcessor::processBlock(juce::AudioBuffer<float>& buffer)
 {
-    juce::Logger::writeToLog("ReverbProcessor: Processing block, samples=" + juce::String(buffer.getNumSamples()) +
-                             ", channels=" + juce::String(buffer.getNumChannels()));
+
     reverb.processMono(buffer.getWritePointer(0), buffer.getNumSamples());
 }
 
@@ -41,5 +40,5 @@ void ReverbProcessor::setReverbMix(float mix)
     reverbParams.wetLevel = dryWetMix;
     reverbParams.dryLevel = 1.0f - dryWetMix;
     reverb.setParameters(reverbParams);
-    juce::Logger::writeToLog("ReverbProcessor: Set mix=" + juce::String(dryWetMix));
+
 };
