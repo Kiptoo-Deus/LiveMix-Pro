@@ -1,6 +1,8 @@
 #pragma once
 #include <JuceHeader.h>
 #include "ReverbProcessor.h"
+#include "SineWaveSound.h"
+#include "SineWaveVoice.h"
 
 class MainComponent : public juce::AudioAppComponent, private juce::MidiKeyboardStateListener
 {
@@ -24,6 +26,9 @@ private:
     juce::Label reverbMixLabel;
     juce::MidiKeyboardState keyboardState;
     juce::MidiKeyboardComponent midiKeyboard;
+    juce::Synthesiser synth;
+    juce::MidiBuffer midiBuffer;
+    bool isListenerAdded = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };
