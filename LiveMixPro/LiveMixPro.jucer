@@ -12,6 +12,11 @@
             file="Source/ReverbProcessor.h"/>
       <FILE id="lsh08E" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
+      <FILE id="jpohEB" name="DelayProcessor.cpp" compile="1" resource="0"
+            file="Source/DelayProcessor.cpp"/>
+      <FILE id="zOanHo" name="Track.h" compile="0" resource="0" file="Source/Track.h"/>
+      <FILE id="FVeEr9" name="DelayProcessor.h" compile="0" resource="0"
+            file="Source/DelayProcessor.h"/>
     </GROUP>
   </MAINGROUP>
   <MODULES>

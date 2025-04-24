@@ -3,13 +3,12 @@
 MainComponent::MainComponent()
         : midiKeyboard(keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
 {
-    // Request microphone permission
     juce::RuntimePermissions::request(juce::RuntimePermissions::recordAudio,
                                       [](bool granted) {
                                           juce::Logger::writeToLog("Microphone permission " + juce::String(granted ? "granted" : "denied"));
                                       });
 
-    setAudioChannels(1, 2); // 1 input (mic), 2 outputs (stereo)
+    setAudioChannels(1, 2);
     setSize(800, 600);
 
     // Setup reverb mix slider
@@ -21,8 +20,6 @@ MainComponent::MainComponent()
         if (juce::isPositiveAndBelow(value, 1.0)) {
             reverbProcessor.setReverbMix(static_cast<float>(value));
             juce::Logger::writeToLog("Reverb mix slider value: " + juce::String(value));
-        } else {
-            juce::Logger::writeToLog("Invalid reverb mix slider value: " + juce::String(value));
         }
     };
     addAndMakeVisible(reverbMixSlider);
@@ -41,8 +38,6 @@ MainComponent::MainComponent()
         if (juce::isPositiveAndBelow(value, 1.0)) {
             reverbProcessor.setRoomSize(static_cast<float>(value));
             juce::Logger::writeToLog("Room size slider value: " + juce::String(value));
-        } else {
-            juce::Logger::writeToLog("Invalid room size slider value: " + juce::String(value));
         }
     };
     addAndMakeVisible(roomSizeSlider);
@@ -52,12 +47,54 @@ MainComponent::MainComponent()
     roomSizeLabel.setFont(juce::Font(20.0f));
     addAndMakeVisible(roomSizeLabel);
 
+    // Setup delay mix slider
+    delayMixSlider.setRange(0.0, 1.0, 0.01);
+    delayMixSlider.setValue(0.5);
+    delayMixSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 40);
+    delayMixSlider.onValueChange = [this] {
+        double value = delayMixSlider.getValue();
+        if (juce::isPositiveAndBelow(value, 1.0)) {
+            delayProcessor.setDelayMix(static_cast<float>(value));
+            juce::Logger::writeToLog("Delay mix slider value: " + juce::String(value));
+        }
+    };
+    addAndMakeVisible(delayMixSlider);
+
+    delayMixLabel.setText("Delay Mix", juce::dontSendNotification);
+    delayMixLabel.attachToComponent(&delayMixSlider, true);
+    delayMixLabel.setFont(juce::Font(20.0f));
+    addAndMakeVisible(delayMixLabel);
+
+    // Setup buttons
+    recordButton.setButtonText("Record");
+    recordButton.onClick = [this] {
+        if (isRecording) stopRecording();
+        else startRecording();
+    };
+    addAndMakeVisible(recordButton);
+
+    playButton.setButtonText("Play");
+    playButton.onClick = [this] {
+        if (isPlaying) stopPlayback();
+        else startPlayback();
+    };
+    addAndMakeVisible(playButton);
+
     // Setup MIDI keyboard
     midiKeyboard.setMidiChannel(1);
     midiKeyboard.setKeyWidth(40.0f);
     midiKeyboard.setAvailableRange(48, 72);
     keyboardState.addListener(this);
     addAndMakeVisible(midiKeyboard);
+
+    // Initialize tracks
+    audioTrack = std::make_unique<AudioTrack>();
+    midiTrack = std::make_unique<MidiTrack>();
+
+    // Setup synth
+    synth.setCurrentPlaybackSampleRate(44100.0);
+    synth.addSound(new SineWaveSound());
+    synth.addVoice(new SineWaveVoice());
 
     // Log audio device
     if (auto* device = deviceManager.getCurrentAudioDevice())
@@ -67,9 +104,9 @@ MainComponent::MainComponent()
     else
         juce::Logger::writeToLog("No audio device available");
 
-    // Initialize reverb parameters
     reverbProcessor.setReverbMix(0.5f);
     reverbProcessor.setRoomSize(0.5f);
+    delayProcessor.setDelayMix(0.5f);
 }
 
 MainComponent::~MainComponent()
@@ -83,6 +120,9 @@ void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate
     juce::Logger::writeToLog("prepareToPlay: sampleRate=" + juce::String(sampleRate) +
                              ", blockSize=" + juce::String(samplesPerBlockExpected));
     reverbProcessor.prepareToPlay(sampleRate, samplesPerBlockExpected);
+    delayProcessor.prepareToPlay(sampleRate, samplesPerBlockExpected);
+    synth.setCurrentPlaybackSampleRate(sampleRate);
+    this->sampleRate = sampleRate;
 }
 
 void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill)
@@ -94,25 +134,41 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
                              ", outputChannels=" + juce::String(outputBuffer->getNumChannels()) +
                              ", samples=" + juce::String(bufferToFill.numSamples));
 
-    if (inputBuffer->getNumChannels() < 1)
+    outputBuffer->clear();
+
+    if (isRecording && inputBuffer->getNumChannels() >= 1)
     {
-        juce::Logger::writeToLog("No input channels available");
-        outputBuffer->clear();
-        return;
+        juce::AudioBuffer<float> tempBuffer(1, bufferToFill.numSamples);
+        tempBuffer.copyFrom(0, 0, inputBuffer->getReadPointer(0), bufferToFill.numSamples);
+        audioTrack->addAudioData(tempBuffer);
+        tempBuffer.applyGain(2.0f);
+        reverbProcessor.processBlock(tempBuffer);
+        delayProcessor.processBlock(tempBuffer);
+        for (int ch = 0; ch < outputBuffer->getNumChannels(); ++ch)
+            outputBuffer->copyFrom(ch, bufferToFill.startSample, tempBuffer.getReadPointer(0), bufferToFill.numSamples);
     }
 
-    inputBuffer->applyGain(2.0f);
-    float maxSample = inputBuffer->getMagnitude(0, 0, inputBuffer->getNumSamples());
-    juce::Logger::writeToLog("Input max sample: " + juce::String(maxSample));
-
-    reverbProcessor.processBlock(*inputBuffer);
-
-    for (int channel = 0; channel < outputBuffer->getNumChannels(); ++channel)
+    if (isPlaying)
     {
-        outputBuffer->copyFrom(channel, bufferToFill.startSample,
-                               inputBuffer->getReadPointer(0),
-                               bufferToFill.numSamples);
+        if (playbackPosition < audioTrack->getNumSamples())
+        {
+            juce::AudioBuffer<float> tempBuffer(1, bufferToFill.numSamples);
+            audioTrack->getAudioData(tempBuffer, playbackPosition, bufferToFill.numSamples);
+            reverbProcessor.processBlock(tempBuffer);
+            delayProcessor.processBlock(tempBuffer);
+            for (int ch = 0; ch < outputBuffer->getNumChannels(); ++ch)
+                outputBuffer->copyFrom(ch, bufferToFill.startSample, tempBuffer.getReadPointer(0), bufferToFill.numSamples);
+        }
+
+        juce::MidiBuffer midiBuffer = midiTrack->getMidiBuffer(playbackPosition, bufferToFill.numSamples);
+        synth.renderNextBlock(*outputBuffer, midiBuffer, 0, bufferToFill.numSamples);
+
+        playbackPosition += bufferToFill.numSamples;
+        if (playbackPosition >= audioTrack->getNumSamples())
+            stopPlayback();
     }
+
+    currentTime += bufferToFill.numSamples / sampleRate;
 }
 
 void MainComponent::releaseResources()
@@ -125,25 +181,27 @@ void MainComponent::paint(juce::Graphics& g)
     g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
     g.setColour(juce::Colours::white);
     g.setFont(20.0f);
-    g.drawText("LiveMixPro", 0, 0, getWidth(), 40, juce::Justification::centred);
+    g.drawText("LiveMixPro DAW - DroidCon 2025", 0, 0, getWidth(), 40, juce::Justification::centred);
 }
 
 void MainComponent::resized()
 {
-    auto area = getLocalBounds().reduced(20); // Margin
-    juce::Logger::writeToLog("Screen bounds: " + area.toString());
-
+    auto area = getLocalBounds().reduced(20);
     area.removeFromTop(40);
 
-    // Reverb mix slider
+    recordButton.setBounds(area.getX(), area.getY() + 10, 80, 40);
+    playButton.setBounds(area.getX() + 90, area.getY() + 10, 80, 40);
+    area.removeFromTop(60);
+
     reverbMixSlider.setBounds(100, area.getY() + 10, area.getWidth() - 120, 40);
     area.removeFromTop(60);
 
-    // Room size slider
     roomSizeSlider.setBounds(100, area.getY() + 10, area.getWidth() - 120, 40);
     area.removeFromTop(60);
 
-    // MIDI keyboard
+    delayMixSlider.setBounds(100, area.getY() + 10, area.getWidth() - 120, 40);
+    area.removeFromTop(60);
+
     midiKeyboard.setBounds(area.getX(), area.getY(), area.getWidth(), 150);
 }
 
@@ -152,6 +210,11 @@ void MainComponent::handleNoteOn(juce::MidiKeyboardState*, int midiChannel, int 
     juce::Logger::writeToLog("MIDI Note On: channel=" + juce::String(midiChannel) +
                              ", note=" + juce::String(midiNoteNumber) +
                              ", velocity=" + juce::String(velocity));
+    if (isRecording)
+    {
+        juce::MidiMessage msg = juce::MidiMessage::noteOn(midiChannel, midiNoteNumber, velocity);
+        midiTrack->addMidiMessage(msg, currentTime);
+    }
 }
 
 void MainComponent::handleNoteOff(juce::MidiKeyboardState*, int midiChannel, int midiNoteNumber, float velocity)
@@ -159,4 +222,41 @@ void MainComponent::handleNoteOff(juce::MidiKeyboardState*, int midiChannel, int
     juce::Logger::writeToLog("MIDI Note Off: channel=" + juce::String(midiChannel) +
                              ", note=" + juce::String(midiNoteNumber) +
                              ", velocity=" + juce::String(velocity));
+    if (isRecording)
+    {
+        juce::MidiMessage msg = juce::MidiMessage::noteOff(midiChannel, midiNoteNumber);
+        midiTrack->addMidiMessage(msg, currentTime);
+    }
+}
+
+void MainComponent::startRecording()
+{
+    isRecording = true;
+    audioTrack->clear();
+    midiTrack->clear();
+    currentTime = 0.0;
+    recordButton.setButtonText("Stop");
+    juce::Logger::writeToLog("Recording started");
+}
+
+void MainComponent::stopRecording()
+{
+    isRecording = false;
+    recordButton.setButtonText("Record");
+    juce::Logger::writeToLog("Recording stopped");
+}
+
+void MainComponent::startPlayback()
+{
+    isPlaying = true;
+    playbackPosition = 0;
+    playButton.setButtonText("Stop");
+    juce::Logger::writeToLog("Playback started");
+}
+
+void MainComponent::stopPlayback()
+{
+    isPlaying = false;
+    playButton.setButtonText("Play");
+    juce::Logger::writeToLog("Playback stopped");
 }
