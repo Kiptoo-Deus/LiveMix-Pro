@@ -12,12 +12,6 @@
             file="Source/ReverbProcessor.h"/>
       <FILE id="lsh08E" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
-      <FILE id="o66bjq" name="SineWaveSound.cpp" compile="1" resource="0"
-            file="Source/SineWaveSound.cpp"/>
-      <FILE id="Sx8g1P" name="SineWaveSound.h" compile="0" resource="0" file="Source/SineWaveSound.h"/>
-      <FILE id="q5WrMP" name="SineWaveVoice.cpp" compile="1" resource="0"
-            file="Source/SineWaveVoice.cpp"/>
-      <FILE id="TKj4PL" name="SineWaveVoice.h" compile="0" resource="0" file="Source/SineWaveVoice.h"/>
     </GROUP>
   </MAINGROUP>
   <MODULES>

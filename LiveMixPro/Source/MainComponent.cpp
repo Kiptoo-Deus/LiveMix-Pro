@@ -1,10 +1,5 @@
 #include "MainComponent.h"
 
-// Disable debugger file I/O on Android to prevent crashes
-#if JUCE_ANDROID
-#define JUCE_DISABLE_JUCE_ISRUNNINGUNDERDEBUGGER 1
-#endif
-
 MainComponent::MainComponent()
         : midiKeyboard(keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
 {
@@ -29,25 +24,15 @@ MainComponent::MainComponent()
 
     reverbMixLabel.setText("Reverb Mix", juce::dontSendNotification);
     reverbMixLabel.attachToComponent(&reverbMixSlider, true);
-    reverbMixLabel.setFont(juce::Font(juce::FontOptions{20.0f}));
+    reverbMixLabel.setFont(juce::Font(20.0f));
     addAndMakeVisible(reverbMixLabel);
 
     // Setup MIDI keyboard
     midiKeyboard.setMidiChannel(1);
-    midiKeyboard.setKeyWidth(40.0f);
+    midiKeyboard.setKeyWidth(40.0f); // ~27 keys fit in ~1080px
     midiKeyboard.setAvailableRange(48, 72); // C3 to C5
-    addAndMakeVisible(midiKeyboard);
-
-    // Setup synthesizer
-    synth.setCurrentPlaybackSampleRate(44100.0);
-    for (int i = 0; i < 4; ++i) // 4 voices for polyphony
-        synth.addVoice(new SineWaveVoice());
-    synth.addSound(new SineWaveSound());
-
-    // Add listener after setup
     keyboardState.addListener(this);
-    isListenerAdded = true;
-    juce::Logger::writeToLog("Added MidiKeyboardState listener");
+    addAndMakeVisible(midiKeyboard);
 
     // Log audio device
     if (auto* device = deviceManager.getCurrentAudioDevice())
@@ -60,11 +45,7 @@ MainComponent::MainComponent()
 
 MainComponent::~MainComponent()
 {
-    if (isListenerAdded)
-    {
-        keyboardState.removeListener(this);
-        juce::Logger::writeToLog("Removed MidiKeyboardState listener");
-    }
+    keyboardState.removeListener(this);
     shutdownAudio();
 }
 
@@ -74,7 +55,6 @@ void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate
                              ", blockSize=" + juce::String(samplesPerBlockExpected));
     reverbProcessor.prepareToPlay(sampleRate, samplesPerBlockExpected);
     reverbProcessor.setReverbMix(static_cast<float>(reverbMixSlider.getValue()));
-    synth.setCurrentPlaybackSampleRate(sampleRate);
 }
 
 void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill)
@@ -86,43 +66,25 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
                              ", outputChannels=" + juce::String(outputBuffer->getNumChannels()) +
                              ", samples=" + juce::String(bufferToFill.numSamples));
 
-    // Clear output buffer
-    outputBuffer->clear();
-
-    // Process microphone input
-    if (inputBuffer->getNumChannels() >= 1)
-    {
-        inputBuffer->applyGain(2.0f);
-        float maxSample = inputBuffer->getMagnitude(0, 0, inputBuffer->getNumSamples());
-        juce::Logger::writeToLog("Input max sample: " + juce::String(maxSample));
-
-        // Copy mic input to output for processing
-        for (int channel = 0; channel < outputBuffer->getNumChannels(); ++channel)
-            outputBuffer->copyFrom(channel, bufferToFill.startSample,
-                                   inputBuffer->getReadPointer(0),
-                                   bufferToFill.numSamples);
-
-        reverbProcessor.processBlock(*outputBuffer);
-    }
-    else
+    if (inputBuffer->getNumChannels() < 1)
     {
         juce::Logger::writeToLog("No input channels available");
+        outputBuffer->clear();
+        return;
     }
 
-    // Process synthesizer with MIDI events
-    juce::AudioBuffer<float> synthBuffer(outputBuffer->getNumChannels(), bufferToFill.numSamples);
-    synthBuffer.clear();
-    synth.renderNextBlock(synthBuffer, midiBuffer, 0, bufferToFill.numSamples);
-    midiBuffer.clear(); // Clear MIDI buffer after rendering
+    inputBuffer->applyGain(2.0f);
+    float maxSample = inputBuffer->getMagnitude(0, 0, inputBuffer->getNumSamples());
+    juce::Logger::writeToLog("Input max sample: " + juce::String(maxSample));
 
-    // Apply reverb to synth output
-    reverbProcessor.processBlock(synthBuffer);
+    reverbProcessor.processBlock(*inputBuffer);
 
-    // Mix synth output into main output
     for (int channel = 0; channel < outputBuffer->getNumChannels(); ++channel)
-        outputBuffer->addFrom(channel, bufferToFill.startSample,
-                              synthBuffer.getReadPointer(channel),
-                              bufferToFill.numSamples);
+    {
+        outputBuffer->copyFrom(channel, bufferToFill.startSample,
+                               inputBuffer->getReadPointer(0),
+                               bufferToFill.numSamples);
+    }
 }
 
 void MainComponent::releaseResources()
@@ -135,17 +97,21 @@ void MainComponent::paint(juce::Graphics& g)
     g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
     g.setColour(juce::Colours::white);
     g.setFont(20.0f);
-    g.drawText("LiveMixPro: Reverb & MIDI Synth", 0, 0, getWidth(), 40, juce::Justification::centred);
+    g.drawText("LiveMixPro: Reverb & MIDI", 0, 0, getWidth(), 40, juce::Justification::centred);
 }
 
 void MainComponent::resized()
 {
-    auto area = getLocalBounds().reduced(20);
+    auto area = getLocalBounds().reduced(20); // Margin
     juce::Logger::writeToLog("Screen bounds: " + area.toString());
 
     area.removeFromTop(40);
+
+    // Reverb slider
     reverbMixSlider.setBounds(100, area.getY() + 10, area.getWidth() - 120, 40);
     area.removeFromTop(60);
+
+    // MIDI keyboard
     midiKeyboard.setBounds(area.getX(), area.getY(), area.getWidth(), 150);
 }
 
@@ -154,8 +120,6 @@ void MainComponent::handleNoteOn(juce::MidiKeyboardState*, int midiChannel, int 
     juce::Logger::writeToLog("MIDI Note On: channel=" + juce::String(midiChannel) +
                              ", note=" + juce::String(midiNoteNumber) +
                              ", velocity=" + juce::String(velocity));
-    juce::MidiMessage msg = juce::MidiMessage::noteOn(midiChannel, midiNoteNumber, velocity);
-    midiBuffer.addEvent(msg, 0);
 }
 
 void MainComponent::handleNoteOff(juce::MidiKeyboardState*, int midiChannel, int midiNoteNumber, float velocity)
@@ -163,7 +127,5 @@ void MainComponent::handleNoteOff(juce::MidiKeyboardState*, int midiChannel, int
     juce::Logger::writeToLog("MIDI Note Off: channel=" + juce::String(midiChannel) +
                              ", note=" + juce::String(midiNoteNumber) +
                              ", velocity=" + juce::String(velocity));
-    juce::MidiMessage msg = juce::MidiMessage::noteOff(midiChannel, midiNoteNumber);
-    midiBuffer.addEvent(msg, 0);
 }
 ;
