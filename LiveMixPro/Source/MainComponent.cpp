@@ -9,7 +9,7 @@ MainComponent::MainComponent()
                                       });
 
     setAudioChannels(1, 2);
-    setSize(800, 600);
+   // setSize(800, 600);  I don't need this because it's an app
 
     // Setup reverb mix slider
     reverbMixSlider.setRange(0.0, 1.0, 0.01);
@@ -184,26 +184,69 @@ void MainComponent::paint(juce::Graphics& g)
     g.drawText("LiveMixPro DAW - DroidCon 2025", 0, 0, getWidth(), 40, juce::Justification::centred);
 }
 
+//void MainComponent::resized()
+//{
+//    auto area = getLocalBounds().reduced(20);
+//    area.removeFromTop(40);
+//
+//    recordButton.setBounds(area.getX(), area.getY() + 10, 80, 40);
+//    playButton.setBounds(area.getX() + 90, area.getY() + 10, 80, 40);
+//    area.removeFromTop(60);
+//
+//    reverbMixSlider.setBounds(100, area.getY() + 10, area.getWidth() - 120, 40);
+//    area.removeFromTop(60);
+//
+//    roomSizeSlider.setBounds(100, area.getY() + 10, area.getWidth() - 120, 40);
+//    area.removeFromTop(60);
+//
+//    delayMixSlider.setBounds(100, area.getY() + 10, area.getWidth() - 120, 40);
+//    area.removeFromTop(60);
+//
+//    midiKeyboard.setBounds(area.getX(), area.getY(), area.getWidth(), 150);
+//}
+
 void MainComponent::resized()
 {
-    auto area = getLocalBounds().reduced(20);
-    area.removeFromTop(40);
+    auto bounds = getLocalBounds().reduced(10);
+    bounds.removeFromTop(40); //  space for the header/title
 
-    recordButton.setBounds(area.getX(), area.getY() + 10, 80, 40);
-    playButton.setBounds(area.getX() + 90, area.getY() + 10, 80, 40);
-    area.removeFromTop(60);
+    juce::FlexBox flexBox;
+    flexBox.flexDirection = juce::FlexBox::Direction::column;
+    flexBox.justifyContent = juce::FlexBox::JustifyContent::flexStart;
+    flexBox.alignItems = juce::FlexBox::AlignItems::stretch;
 
-    reverbMixSlider.setBounds(100, area.getY() + 10, area.getWidth() - 120, 40);
-    area.removeFromTop(60);
 
-    roomSizeSlider.setBounds(100, area.getY() + 10, area.getWidth() - 120, 40);
-    area.removeFromTop(60);
+    juce::FlexBox buttonRow;
+    buttonRow.flexDirection = juce::FlexBox::Direction::row;
+    buttonRow.justifyContent = juce::FlexBox::JustifyContent::spaceBetween;
 
-    delayMixSlider.setBounds(100, area.getY() + 10, area.getWidth() - 120, 40);
-    area.removeFromTop(60);
+    buttonRow.items.add(juce::FlexItem(recordButton).withMinWidth(80.0f).withHeight(40.0f).withMargin(5));
+    buttonRow.items.add(juce::FlexItem(playButton).withMinWidth(80.0f).withHeight(40.0f).withMargin(5));
 
-    midiKeyboard.setBounds(area.getX(), area.getY(), area.getWidth(), 150);
+    flexBox.items.add(juce::FlexItem(buttonRow).withHeight(50.0f));
+
+    // Helper lambda to add sliders with labels
+    auto addSliderRow = [&](juce::Label& label, juce::Slider& slider)
+    {
+        juce::FlexBox row;
+        row.flexDirection = juce::FlexBox::Direction::row;
+        row.items.add(juce::FlexItem(label).withMinWidth(100.0f).withMargin(juce::FlexItem::Margin(5)));
+        row.items.add(juce::FlexItem(slider).withFlex(1.0f).withMinHeight(40.0f).withMargin(juce::FlexItem::Margin(5)));
+        flexBox.items.add(juce::FlexItem(row).withHeight(50.0f));
+    };
+
+    addSliderRow(reverbMixLabel, reverbMixSlider);
+    addSliderRow(roomSizeLabel, roomSizeSlider);
+    addSliderRow(delayMixLabel, delayMixSlider);
+
+    // MIDI Keyboard
+    flexBox.items.add(juce::FlexItem(midiKeyboard).withHeight(150.0f).withMargin(juce::FlexItem::Margin(10.0f, 5.0f, 5.0f, 5.0f)));
+
+    // Apply layout
+    flexBox.performLayout(bounds);
 }
+
+
 
 void MainComponent::handleNoteOn(juce::MidiKeyboardState*, int midiChannel, int midiNoteNumber, float velocity)
 {
