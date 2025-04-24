@@ -9,7 +9,6 @@
 */
 
 #pragma once
-
 #include <JuceHeader.h>
 
 class ReverbProcessor
@@ -19,6 +18,7 @@ public:
     void prepareToPlay(double sampleRate, int samplesPerBlock);
     void processBlock(juce::AudioBuffer<float>& buffer);
     void setReverbMix(float mix);
+    void setRoomSize(float size);
 
 private:
     juce::Reverb reverb;

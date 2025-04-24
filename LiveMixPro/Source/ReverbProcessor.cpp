@@ -7,9 +7,7 @@
 
   ==============================================================================
 */
-
 #include "ReverbProcessor.h"
-
 
 ReverbProcessor::ReverbProcessor()
 {
@@ -25,12 +23,10 @@ void ReverbProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     reverb.reset();
     reverb.setSampleRate(sampleRate);
-
 }
 
 void ReverbProcessor::processBlock(juce::AudioBuffer<float>& buffer)
 {
-
     reverb.processMono(buffer.getWritePointer(0), buffer.getNumSamples());
 }
 
@@ -40,5 +36,11 @@ void ReverbProcessor::setReverbMix(float mix)
     reverbParams.wetLevel = dryWetMix;
     reverbParams.dryLevel = 1.0f - dryWetMix;
     reverb.setParameters(reverbParams);
+}
 
-};
+void ReverbProcessor::setRoomSize(float size)
+{
+    reverbParams.roomSize = juce::jlimit(0.0f, 1.0f, size);
+    reverb.setParameters(reverbParams);
+    juce::Logger::writeToLog("Room size set to: " + juce::String(size));
+}

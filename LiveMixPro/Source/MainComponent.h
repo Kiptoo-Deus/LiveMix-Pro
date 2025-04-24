@@ -22,6 +22,8 @@ private:
     ReverbProcessor reverbProcessor;
     juce::Slider reverbMixSlider;
     juce::Label reverbMixLabel;
+    juce::Slider roomSizeSlider;
+    juce::Label roomSizeLabel;   
     juce::MidiKeyboardState keyboardState;
     juce::MidiKeyboardComponent midiKeyboard;
 
